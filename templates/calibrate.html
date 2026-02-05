@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Field Calibration Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #059669;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #d97706;
+        }
+
+        .workspace {
+            display: flex;
+            height: calc(100vh - 140px);
+        }
+
+        .canvas-area {
+            flex: 1;
+            padding: 30px;
+            overflow: auto;
+            background: #f8fafc;
+            position: relative;
+        }
+
+        .pdf-canvas {
+            position: relative;
+            background: white;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            margin: 0 auto;
+        }
+
+        .pdf-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .pdf-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+        }
+
+        .field-label {
+            position: absolute;
+            background: rgba(37, 99, 235, 0.9);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: move;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+            user-select: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            transition: background 0.2s;
+            z-index: 10;
+        }
+
+        .field-label::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 6px;
+            height: 6px;
+            background: #ef4444;
+            border-radius: 50%;
+            border: 1px solid white;
+            transform: translate(-50%, 50%);
+        }
+
+        .field-label:hover {
+            background: rgba(29, 78, 216, 1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .field-label.dragging {
+            opacity: 0.7;
+            cursor: grabbing;
+        }
+
+        .sidebar {
+            width: 300px;
+            background: #1e293b;
+            color: white;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .sidebar h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #60a5fa;
+        }
+
+        .field-list {
+            list-style: none;
+        }
+
+        .field-item {
+            background: #334155;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .field-item strong {
+            color: #60a5fa;
+        }
+
+        .instructions {
+            background: #475569;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #10b981;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+        }
+
+        .status.show {
+            opacity: 1;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 18px;
+            color: #64748b;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📍 PDF Field Calibration Tool</h1>
+            <div class="controls">
+                <button class="btn btn-secondary" onclick="resetPositions()">Reset</button>
+                <button class="btn btn-secondary" onclick="generateTestPDF()" style="background: #8b5cf6;">Generate Test
+                    PDF</button>
+                <button class="btn btn-primary" onclick="saveCoordinates()">Save Coordinates</button>
+            </div>
+        </div>
+
+        <div class="workspace">
+            <div class="canvas-area">
+                <div class="loading" id="loading">Loading PDF template...</div>
+                <div class="pdf-canvas" id="pdfCanvas">
+                    <canvas id="pdfBackground" class="pdf-background"></canvas>
+                    <div id="pdfLayer" class="pdf-layer"></div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="instructions">
+                    <strong>How to use:</strong><br>
+                    1. Drag each field label to its correct position on the PDF<br>
+                    2. Align text to where it should appear<br>
+                    3. Click "Save Coordinates" when done<br>
+                    4. Test with the main app!
+                </div>
+
+                <h2>Field Positions</h2>
+                <ul class="field-list" id="fieldList">
+                    <!-- Will be populated dynamically -->
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <!-- PDF.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+    <script>
+        // Configure PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        let coordinates = {};
+        let draggedElement = null;
+        let offsetX = 0;
+        let offsetY = 0;
+        const PDF_WIDTH = 612;
+        const PDF_HEIGHT = 792;
+        const SCALE = 1.2; // Scale for better visibility
+        let pdfRendered = false;
+
+        // Field name to display name mapping
+        const FIELD_NAMES = {
+            'description': 'Computer Model',
+            'serial': 'Serial Number',
+            'price': 'Price',
+            'cpu_model': 'CPU Model',
+            'cpu_cores': 'CPU Cores',
+            'cpu_threads': 'CPU Threads',
+            'cpu_speed': 'CPU Speed',
+            'ram': 'RAM',
+            'storage_capacity': 'Storage Capacity',
+            'storage_type_hdd': 'HDD Indicator',
+            'storage_type_ssd': 'SSD Indicator',
+            'battery_health': 'Battery Health',
+            'screen_size': 'Screen Size',
+            'battery_duration': 'Battery Duration',
+            'wifi': 'WiFi',
+            'webcam': 'Webcam',
+            'speakers': 'Speakers',
+            'microphone': 'Microphone',
+            'os_name': 'OS Name',
+            'os_version': 'OS Version',
+            'vlc': 'VLC',
+            'chrome': 'Chrome',
+            'firefox': 'Firefox',
+            'libreoffice': 'LibreOffice',
+            'built_by': 'Built By',
+            'build_date': 'Build Date',
+            'ram_type': 'RAM Type (DDR)'
+        };
+
+        async function loadCoordinates() {
+            try {
+                // First render the PDF background
+                await renderPDF();
+
+                // Then load coordinates
+                const response = await fetch('/api/get_coordinates');
+                const data = await response.json();
+
+                if (data.success) {
+                    coordinates = data.coordinates;
+                    initializeCanvas();
+                } else {
+                    showStatus('Error loading coordinates: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showStatus('Failed to load coordinates: ' + error.message, 'error');
+            }
+        }
+
+        async function renderPDF() {
+            try {
+                const loadingTask = pdfjsLib.getDocument('/api/pdf_template');
+                const pdf = await loadingTask.promise;
+                const page = await pdf.getPage(1);
+
+                const viewport = page.getViewport({ scale: SCALE });
+                const canvas = document.getElementById('pdfBackground');
+                const context = canvas.getContext('2d');
+
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+
+                // Set the canvas container size
+                const pdfCanvas = document.getElementById('pdfCanvas');
+                pdfCanvas.style.width = viewport.width + 'px';
+                pdfCanvas.style.height = viewport.height + 'px';
+
+                const renderContext = {
+                    canvasContext: context,
+                    viewport: viewport
+                };
+
+                await page.render(renderContext).promise;
+                pdfRendered = true;
+            } catch (error) {
+                console.error('Error rendering PDF:', error);
+                showStatus('Failed to load PDF template: ' + error.message, 'error');
+            }
+        }
+
+        function initializeCanvas() {
+            const loading = document.getElementById('loading');
+            const pdfLayer = document.getElementById('pdfLayer');
+
+            // Create draggable labels for each field
+            for (const [fieldName, coords] of Object.entries(coordinates)) {
+                createFieldLabel(fieldName, coords.x, coords.y);
+            }
+
+            // Update sidebar
+            updateFieldList();
+
+            loading.style.display = 'none';
+        }
+
+        function createFieldLabel(fieldName, x, y) {
+            const pdfLayer = document.getElementById('pdfLayer');
+            const label = document.createElement('div');
+            label.className = 'field-label';
+            label.textContent = FIELD_NAMES[fieldName] || fieldName;
+            label.dataset.field = fieldName;
+
+            // Convert PDF coordinates (bottom-left origin, Y at text baseline) 
+            // to screen coordinates (top-left origin)
+            // In PDF: Y is at the baseline of text (bottom of text)
+            // In HTML: We position from top-left of the div
+            // So we need to position the BOTTOM of the label at the PDF Y coordinate
+
+            const screenX = x * SCALE;
+            const screenY = (PDF_HEIGHT - y) * SCALE;
+
+            // Position the label (will adjust after it's in DOM to get actual height)
+            label.style.left = screenX + 'px';
+            label.style.top = screenY + 'px';
+
+            // Add drag handlers
+            label.addEventListener('mousedown', startDrag);
+
+            pdfLayer.appendChild(label);
+
+            // Now that it's in the DOM, adjust position so bottom of label is at Y coordinate
+            // This makes the label align with where text will actually appear
+            const labelHeight = label.offsetHeight;
+            label.style.top = (screenY - labelHeight) + 'px';
+        }
+
+        function startDrag(e) {
+            draggedElement = e.target;
+            draggedElement.classList.add('dragging');
+
+            const rect = draggedElement.getBoundingClientRect();
+            const canvasRect = document.getElementById('pdfCanvas').getBoundingClientRect();
+
+            offsetX = e.clientX - rect.left;
+            offsetY = e.clientY - rect.top;
+
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', stopDrag);
+
+            e.preventDefault();
+        }
+
+        function drag(e) {
+            if (!draggedElement) return;
+
+            const canvasRect = document.getElementById('pdfCanvas').getBoundingClientRect();
+            let x = e.clientX - canvasRect.left - offsetX;
+            let y = e.clientY - canvasRect.top - offsetY;
+
+            // Constrain to canvas
+            x = Math.max(0, Math.min(x, canvasRect.width - draggedElement.offsetWidth));
+            y = Math.max(0, Math.min(y, canvasRect.height - draggedElement.offsetHeight));
+
+            draggedElement.style.left = x + 'px';
+            draggedElement.style.top = y + 'px';
+        }
+
+        function stopDrag(e) {
+            if (!draggedElement) return;
+
+            draggedElement.classList.remove('dragging');
+
+            // Update coordinates
+            const fieldName = draggedElement.dataset.field;
+            const screenX = parseFloat(draggedElement.style.left);
+            const screenY = parseFloat(draggedElement.style.top);
+            const labelHeight = draggedElement.offsetHeight;
+
+            // Convert screen coordinates back to PDF coordinates
+            // Remember: the bottom of the label should be at the PDF Y coordinate (text baseline)
+            const pdfX = Math.round(screenX / SCALE);
+            const pdfY = Math.round(PDF_HEIGHT - ((screenY + labelHeight) / SCALE));
+
+            coordinates[fieldName].x = pdfX;
+            coordinates[fieldName].y = pdfY;
+
+            updateFieldList();
+
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', stopDrag);
+
+            draggedElement = null;
+        }
+
+        function updateFieldList() {
+            const list = document.getElementById('fieldList');
+            list.innerHTML = '';
+
+            for (const [fieldName, coords] of Object.entries(coordinates)) {
+                const li = document.createElement('li');
+                li.className = 'field-item';
+                li.innerHTML = `<strong>${FIELD_NAMES[fieldName] || fieldName}:</strong><br>X: ${coords.x}, Y: ${coords.y}`;
+                list.appendChild(li);
+            }
+        }
+
+        async function saveCoordinates() {
+            try {
+                const response = await fetch('/api/save_coordinates', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        coordinates: coordinates
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showStatus('✓ Coordinates saved successfully!', 'success');
+                } else {
+                    showStatus('Error saving: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showStatus('Failed to save: ' + error.message, 'error');
+            }
+        }
+
+        async function generateTestPDF() {
+            try {
+                showStatus('Generating test PDF...', 'success');
+
+                const response = await fetch('/api/generate_test_pdf', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    // Create a blob from the response
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+
+                    // Open in new window/tab
+                    window.open(url, '_blank');
+
+                    showStatus('✓ Test PDF generated and opened!', 'success');
+                } else {
+                    const data = await response.json();
+                    showStatus('Error generating PDF: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showStatus('Failed to generate PDF: ' + error.message, 'error');
+            }
+        }
+
+        function resetPositions() {
+            if (confirm('Reset all fields to their original positions?')) {
+                loadCoordinates();
+            }
+        }
+
+        function showStatus(message, type = 'success') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.style.background = type === 'success' ? '#10b981' : '#ef4444';
+            status.classList.add('show');
+
+            setTimeout(() => {
+                status.classList.remove('show');
+            }, 3000);
+        }
+
+        // Initialize on load
+        loadCoordinates();
+    </script>
+</body>
+
+</html>
