@@ -300,12 +300,24 @@ def calculate_price(specs, db_path='cpus.db', manual_passmark=None):
     os_name = specs['os_name'].lower()
     
     os_mult = prices.get('OS_WINDOWS_MULT', 1.0) # Default
-    if 'linux' in os_name or 'ubuntu' in os_name or 'fedora' in os_name or 'debian' in os_name or 'pop' in os_name or 'mint' in os_name:
-        os_mult = prices.get('OS_LINUX_MULT', 0.85)
-    elif 'mac' in os_name or 'macos' in os_name:
-        os_mult = prices.get('OS_MACOS_MULT', 1.2)
-    elif 'windows' in os_name or 'microsoft' in os_name:
-        os_mult = prices.get('OS_WINDOWS_MULT', 1.0)
+    
+    # Check for explicit price type first (new method)
+    if 'os_price_type' in specs:
+        ptype = specs['os_price_type']
+        if ptype == 'Linux':
+            os_mult = prices.get('OS_LINUX_MULT', 0.85)
+        elif ptype == 'macOS':
+            os_mult = prices.get('OS_MACOS_MULT', 1.2)
+        elif ptype == 'Windows' or ptype == 'Other':
+            os_mult = prices.get('OS_WINDOWS_MULT', 1.0)
+    else:
+        # Fallback to string matching (old method)
+        if 'linux' in os_name or 'ubuntu' in os_name or 'fedora' in os_name or 'debian' in os_name or 'pop' in os_name or 'mint' in os_name:
+            os_mult = prices.get('OS_LINUX_MULT', 0.85)
+        elif 'mac' in os_name or 'macos' in os_name:
+            os_mult = prices.get('OS_MACOS_MULT', 1.2)
+        elif 'windows' in os_name or 'microsoft' in os_name:
+            os_mult = prices.get('OS_WINDOWS_MULT', 1.0)
         
     # Logic: modifier is the difference from temp
     # If os_mult is 0.85 (15% off), price is temp * 0.85. 

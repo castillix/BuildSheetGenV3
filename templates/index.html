@@ -89,6 +89,13 @@
                         <div class="form-group">
                             <label for="cpu_turbo">Max Turbo Speed (GHz) <span class="required">*</span></label>
                             <input type="number" id="cpu_turbo" step="0.1" min="0" max="10" placeholder="e.g., 3.6">
+                            <small>Used for pricing calculations</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="cpu_base_clock">Base Clock Speed (GHz)</label>
+                            <input type="number" id="cpu_base_clock" step="0.1" min="0" max="10"
+                                placeholder="e.g., 2.5">
+                            <small>Displayed on the build sheet (leave blank to use turbo speed)</small>
                         </div>
                         <div class="form-group">
                             <label for="cpu_passmark">Passmark Score <span class="required">*</span></label>
@@ -162,9 +169,22 @@
             <!-- Operating System -->
             <section class="form-section">
                 <h2>Operating System</h2>
-                <div class="form-group">
-                    <label for="os_name">OS Name <span class="required">*</span></label>
-                    <input type="text" id="os_name" name="os_name" required placeholder="e.g., Windows 11 Pro 23H2">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="os_price_type">Pricing Category <span class="required">*</span></label>
+                        <select id="os_price_type" name="os_price_type" required>
+                            <option value="Windows">Windows (Standard)</option>
+                            <option value="Linux">Linux / Free (Discount)</option>
+                            <option value="macOS">macOS (Premium)</option>
+                            <option value="Other">Other (Standard)</option>
+                        </select>
+                        <small>Determines price calculation</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="os_name">Display Name <span class="required">*</span></label>
+                        <input type="text" id="os_name" name="os_name" required placeholder="e.g., Windows 11 Pro 23H2">
+                        <small>Appears on the build sheet</small>
+                    </div>
                 </div>
             </section>
 

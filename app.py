@@ -12,7 +12,7 @@ from werkzeug.utils import secure_filename
 from calibration_routes import calibration_bp
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'freegeek-buildsheet-secret-key-2026'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'freegeek-buildsheet-secret-key-2026')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
 # Register blueprints
@@ -90,6 +90,7 @@ def calculate_price():
             'drives': drives,
             'gpu_price': float(data.get('gpu_price', 0)),
             'os_name': data.get('os_name', 'Windows'),
+            'os_price_type': data.get('os_price_type', 'Windows'),
             'is_laptop': data.get('is_laptop', False)
         }
         
@@ -140,6 +141,7 @@ def generate_buildsheet():
             'drives': drives,
             'gpu_price': float(data.get('gpu_price', 0)),
             'os_name': data.get('os_name', 'Windows'),
+            'os_price_type': data.get('os_price_type', 'Windows'),
             'is_laptop': data.get('is_laptop', False)
         }
         

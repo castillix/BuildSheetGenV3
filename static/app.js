@@ -213,6 +213,8 @@ function collectFormData() {
         ram_gb: document.getElementById('ram_gb').value,
         ram_type: document.getElementById('ram_type').value,
         gpu_price: document.getElementById('gpu_price').value || 0,
+        gpu_price: document.getElementById('gpu_price').value || 0,
+        os_price_type: document.getElementById('os_price_type').value,
         os_name: document.getElementById('os_name').value,
         drives: []
     };
@@ -303,6 +305,8 @@ function collectFullFormData() {
         ram_type: document.getElementById('ram_type').value,
         gpu_name: document.getElementById('gpu_name').value,
         gpu_price: document.getElementById('gpu_price').value || 0,
+        gpu_price: document.getElementById('gpu_price').value || 0,
+        os_price_type: document.getElementById('os_price_type').value,
         os_name: document.getElementById('os_name').value,
         wifi: document.getElementById('wifi').checked,
         bluetooth: document.getElementById('bluetooth').checked,
@@ -333,14 +337,21 @@ function collectFullFormData() {
         data.cpu_model_name = selectedCPU.name;
         data.cpu_cores = selectedCPU.cores;
         data.cpu_threads = selectedCPU.threads;
-        data.cpu_turbo = (selectedCPU.turbo / 1000).toFixed(2); // Convert MHz to GHz
-        data.cpu_speed = (selectedCPU.clock / 1000).toFixed(2); // Convert base clock MHz to GHz for PDF
+        // DB stores clock/turbo in GHz already — no /1000 conversion needed
+        data.cpu_turbo = parseFloat(selectedCPU.turbo).toFixed(2);
+        // Use base clock for PDF display; fall back to turbo if clock is 0/missing in DB
+        const baseClock = selectedCPU.clock && selectedCPU.clock > 0
+            ? parseFloat(selectedCPU.clock).toFixed(2)
+            : parseFloat(selectedCPU.turbo).toFixed(2);
+        data.cpu_speed = baseClock;
     } else if (mode === 'manual') {
         data.cpu_name = document.getElementById('cpu_name_manual').value;
         data.cpu_cores = document.getElementById('cpu_cores').value;
         data.cpu_threads = document.getElementById('cpu_threads').value;
         data.cpu_turbo = document.getElementById('cpu_turbo').value;
-        data.cpu_speed = data.cpu_turbo; // Use turbo as the speed displayed on PDF for manual entry
+        // Use base clock for PDF display; fall back to turbo if base clock field is left blank
+        const baseClockManual = document.getElementById('cpu_base_clock').value;
+        data.cpu_speed = baseClockManual || data.cpu_turbo;
         data.manual_passmark = document.getElementById('cpu_passmark').value;
     }
 
